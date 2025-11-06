@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Búsqueda Inteligente</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos personalizados para un look dinámico y futurista */
+        :root {
+            /* Dark Theme (Default) */
+            --bg-gradient-start: #020617;
+            --bg-gradient-mid: #0f172a;
+            --bg-gradient-end: #1e293b;
+            --card-bg: rgba(30, 41, 59, 0.5);
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --text-tertiary: #64748b;
+            --accent-color: #38bdf8;
+            --border-color: #334155;
+            --input-bg: rgba(15, 23, 42, 0.7);
+            --table-header-bg: rgba(30, 41, 59, 0.8);
+            --row-hover-bg: rgba(51, 65, 85, 0.5);
+            --card-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body.light-theme {
+            /* Light Theme Overrides */
+            --bg-gradient-start: #f1f5f9;
+            --bg-gradient-mid: #e2e8f0;
+            --bg-gradient-end: #cbd5e1;
+            --card-bg: rgba(255, 255, 255, 0.6);
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-tertiary: #64748b;
+            --accent-color: #0284c7;
+            --border-color: #cbd5e1;
+            --input-bg: rgba(241, 245, 249, 0.7);
+            --table-header-bg: rgba(226, 232, 240, 0.8);
+            --row-hover-bg: rgba(203, 213, 225, 0.5);
+            --card-border: rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-mid), var(--bg-gradient-end));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            color: var(--text-primary);
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.5);
+            transform: translateY(-5px);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            text-align: center;
+            border: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
+        }
+        
+        .btn-primary { background: linear-gradient(45deg, #2563eb, #3b82f6); color: white; }
+        .btn-secondary { background: linear-gradient(45deg, #059669, #10b981); color: white; }
+        .btn-tertiary { background: linear-gradient(45deg, #5b21b6, #6d28d9); color: white; }
+        .btn-danger { background: linear-gradient(45deg, #dc2626, #ef4444); color: white; }
+        .btn-gray { background: linear-gradient(45deg, #4b5563, #6b7280); color: white; }
+
+        .file-input-label {
+            border: 2px dashed var(--text-secondary);
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+        
+        .paste-zone {
+            border: 2px dashed var(--text-secondary);
+            color: var(--text-secondary);
+            min-height: 80px;
+        }
+
+        textarea, input[type="text"] {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        textarea::placeholder, input[type="text"]::placeholder {
+            color: var(--text-secondary);
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
+        }
+        
+        h1, h2, h3 {
+            color: var(--text-primary);
+        }
+        p, label {
+            color: var(--text-secondary);
+        }
+        footer p {
+            color: var(--text-tertiary);
+        }
+        
+        .toggler-chevron {
+            color: var(--text-secondary);
+        }
+
+        #printableArea table {
+            background-color: transparent;
+            border-color: var(--border-color);
+        }
+        #printableArea th {
+            background-color: var(--table-header-bg);
+            color: var(--accent-color);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+        }
+        #printableArea td {
+            border-color: var(--border-color);
+            transition: background-color 0.3s ease;
+        }
+        #printableArea tr:hover td {
+            background-color: var(--row-hover-bg);
+        }
+        #printableArea .code-input {
+            font-weight: 600;
+        }
+        #printableArea .bulk-save-btn {
+            padding: 0.25rem 0.75rem;
+        }
+        
+        .print-only {
+            display: none;
+        }
+
+        /* Estilos para impresión */
+        @media print {
+            body {
+                background: white !important;
+            }
+            body * {
+                visibility: hidden;
+            }
+            #printableArea, #printableArea * {
+                visibility: visible;
+                color: black !important;
+            }
+            #printableArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+                background-color: white !important;
+                color: black !important;
+            }
+            .results-scroll-wrapper {
+                max-height: none !important;
+                overflow-y: visible !important;
+            }
+            #printableArea table, #printableArea th, #printableArea td {
+                border-color: #999 !important;
+                font-size: 9pt !important;
+                padding: 2px 4px !important;
+            }
+            #printableArea th {
+                background-color: #eee !important;
+            }
+            #printableArea .text-red-500 {
+                color: black !important;
+            }
+            #printableArea .text-red-400 {
+                color: black !important;
+            }
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="text-center mb-8 no-print relative">
+            <h1 class="text-3xl sm:text-4xl font-bold tracking-wider">Gestor de Búsqueda Inteligente</h1>
+            <p class="mt-2">Carga, convierte imágenes, busca, actualiza y guarda tus datos de inventario.</p>
+            
+            <div class="absolute top-0 right-0">
+                <button id="themeToggleBtn" class="p-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-colors duration-300">
+                    <svg id="themeIconSun" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-300 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 5a7 7 0 100 14 7 7 0 000-14z" />
+                    </svg>
+                    <svg id="themeIconMoon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main class="space-y-6 no-print">
+            <div class="card">
+                <div id="dataLoaderToggler" class="flex justify-between items-center cursor-pointer">
+                    <h2 class="text-2xl font-semibold">1. Cargar Hojas de Datos</h2>
+                    <svg id="dataLoaderChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform rotate-180 toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div id="dataLoaderContent" class="mt-4 border-t border-slate-700 pt-4">
+                    <div class="space-y-4">
+                        <div class="flex items-center gap-4 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                            <div class="flex-shrink-0 w-10 h-10 bg-slate-700 text-blue-400 rounded-lg flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="font-semibold">Base de Datos 1 (Descripciones)</h3>
+                                <p id="status1" class="text-sm">No se ha cargado ningún archivo.</p>
+                            </div>
+                            <label for="file1" class="btn btn-primary text-sm py-2 px-4 cursor-pointer">
+                                <span>Seleccionar</span>
+                            </label>
+                            <input type="file" id="file1" accept=".xlsx, .xls" class="hidden">
+                        </div>
+                        <div class="flex items-center gap-4 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
+                            <div class="flex-shrink-0 w-10 h-10 bg-slate-700 text-green-400 rounded-lg flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            </div>
+                            <div class="flex-grow">
+                                <h3 class="font-semibold">Base de Datos 2 (Ubicaciones)</h3>
+                                <p id="status2" class="text-sm">No se ha cargado ningún archivo.</p>
+                            </div>
+                            <label for="file2" class="btn btn-secondary text-sm py-2 px-4 cursor-pointer">
+                                <span>Seleccionar</span>
+                            </label>
+                            <input type="file" id="file2" accept=".xlsx, .xls" class="hidden">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div id="ocrToggler" class="flex justify-between items-center cursor-pointer">
+                    <h2 class="text-2xl font-semibold">2. Convertir Imagen a Texto (OCR)</h2>
+                    <svg id="ocrChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+
+                <div id="ocrContent" class="hidden mt-4 border-t border-slate-700 pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                        <div id="paste-area-codes" class="space-y-2">
+                            <h3 class="font-medium">A. Extraer Códigos</h3>
+                            <label for="ocrInputCodes" class="btn btn-tertiary w-full text-sm py-2 cursor-pointer">
+                                <span>Seleccionar Archivo de Códigos</span>
+                            </label>
+                            <p class="text-xs text-center">(O pegue la imagen en esta sección)</p>
+                            <input type="file" id="ocrInputCodes" accept="image/*" class="hidden">
+                            <p id="ocrStatusCodes" class="text-sm text-center">...</p>
+                            <textarea id="ocrOutput" rows="4" class="w-full p-2" placeholder="Códigos extraídos..."></textarea>
+                            <button id="clearOcrOutputBtn" class="btn btn-danger w-full text-sm py-2">
+                                <span>Limpiar Códigos</span>
+                            </button>
+                        </div>
+                        <div id="paste-area-quantities" class="space-y-2">
+                            <h3 class="font-medium">B. Extraer Cantidades</h3>
+                            <label for="ocrInputQuantities" class="btn btn-tertiary w-full text-sm py-2 cursor-pointer">
+                                <span>Seleccionar Archivo de Cantidades</span>
+                            </label>
+                            <p class="text-xs text-center">(O pegue la imagen en esta sección)</p>
+                            <input type="file" id="ocrInputQuantities" accept="image/*" class="hidden">
+                            <p id="ocrStatusQuantities" class="text-sm text-center">...</p>
+                            <textarea id="quantityInput" rows="4" class="w-full p-2" placeholder="Cantidades extraídas..."></textarea>
+                            <button id="clearQuantityInputBtn" class="btn btn-danger w-full text-sm py-2">
+                                <span>Limpiar Cantidades</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 border-t border-slate-700 pt-4">
+                        <button id="generateReportBtn" class="btn btn-primary w-full">
+                            <span>Generar Reporte con Datos Convertidos</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div id="bulkSearchToggler" class="flex justify-between items-center cursor-pointer">
+                    <h2 class="text-2xl font-semibold">3. Búsqueda Manual</h2>
+                    <svg id="bulkSearchChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </div>
+                <div id="bulkSearchContent" class="hidden mt-4 border-t border-slate-700 pt-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label for="bulkSearchInput" class="block font-medium">Pegue los códigos aquí (uno por línea):</label>
+                            <button id="clearBulkSearchBtn" class="btn btn-danger px-3 py-1 text-sm">
+                                <span>Limpiar</span>
+                            </button>
+                        </div>
+                        <textarea id="bulkSearchInput" rows="8" class="w-full p-3"></textarea>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="printableArea" class="p-8">
+        <h1 id="printTitle" class="text-2xl font-bold mb-6 text-center"></h1>
+        <div id="bulkResultsOutput"></div>
+        
+        <div class="flex justify-end mt-8 no-print gap-4">
+            <button id="clearReportBtn" class="btn btn-gray hidden">
+                <span>Limpiar Reporte</span>
+            </button>
+            
+            <button id="saveOnlyButton" class="btn btn-tertiary hidden" disabled>
+                <span>Guardar Cambios Localmente</span>
+            </button>
+            
+            <button id="saveButton" class="btn btn-primary hidden" disabled>
+                <span>Descargar Excel (con Cambios)</span>
+            </button>
+            
+            <button id="printButton" class="btn btn-secondary hidden">
+                <span>Imprimir Lista</span>
+            </button>
+        </div>
+    </div>
+
+    <footer class="text-center p-4 mt-8 no-print">
+        <p class="text-sm">CREADO POR EYNER GARCIA</p>
+    </footer>
+
+    <script>
+        // Declaración de variables para almacenar los datos de los Excel
+        let data1 = [];
+        let data2 = [];
+        let db2_filename = 'base_de_datos_actualizada.xlsx';
+
+        // Referencias a los elementos del DOM
+        const fileInput1 = document.getElementById('file1');
+        const fileInput2 = document.getElementById('file2');
+        const status1 = document.getElementById('status1');
+        const status2 = document.getElementById('status2');
+        const saveButton = document.getElementById('saveButton');
+        const saveOnlyButton = document.getElementById('saveOnlyButton');
+        const bulkSearchInput = document.getElementById('bulkSearchInput');
+        const printableArea = document.getElementById('printableArea');
+        const bulkResultsOutput = document.getElementById('bulkResultsOutput');
+        const printButton = document.getElementById('printButton');
+        const printTitle = document.getElementById('printTitle');
+        const dataLoaderToggler = document.getElementById('dataLoaderToggler');
+        const dataLoaderContent = document.getElementById('dataLoaderContent');
+        const dataLoaderChevron = document.getElementById('dataLoaderChevron');
+        const ocrToggler = document.getElementById('ocrToggler');
+        const ocrContent = document.getElementById('ocrContent');
+        const ocrChevron = document.getElementById('ocrChevron');
+        const bulkSearchToggler = document.getElementById('bulkSearchToggler');
+        const bulkSearchContent = document.getElementById('bulkSearchContent');
+        const bulkSearchChevron = document.getElementById('bulkSearchChevron');
+        const ocrInputCodes = document.getElementById('ocrInputCodes');
+        const ocrInputQuantities = document.getElementById('ocrInputQuantities');
+        const ocrStatusCodes = document.getElementById('ocrStatusCodes');
+        const ocrStatusQuantities = document.getElementById('ocrStatusQuantities');
+        const ocrOutput = document.getElementById('ocrOutput');
+        const quantityInput = document.getElementById('quantityInput');
+        const clearOcrOutputBtn = document.getElementById('clearOcrOutputBtn');
+        const clearQuantityInputBtn = document.getElementById('clearQuantityInputBtn');
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        const pasteAreaCodes = document.getElementById('paste-area-codes');
+        const pasteAreaQuantities = document.getElementById('paste-area-quantities');
+        const clearBulkSearchBtn = document.getElementById('clearBulkSearchBtn');
+        const clearReportBtn = document.getElementById('clearReportBtn');
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        const themeIconSun = document.getElementById('themeIconSun');
+        const themeIconMoon = document.getElementById('themeIconMoon');
+        const body = document.body;
+
+        // THEME LOGIC
+        const applyTheme = (theme) => {
+            if (theme === 'light') {
+                body.classList.add('light-theme');
+                themeIconSun.classList.remove('hidden');
+                themeIconMoon.classList.add('hidden');
+            } else {
+                body.classList.remove('light-theme');
+                themeIconSun.classList.add('hidden');
+                themeIconMoon.classList.remove('hidden');
+            }
+        };
+        
+        themeToggleBtn.addEventListener('click', () => {
+            const isLight = body.classList.contains('light-theme');
+            const newTheme = isLight ? 'dark' : 'light';
+            localStorage.setItem('theme', newTheme);
+            applyTheme(newTheme);
+        });
+        
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        applyTheme(savedTheme);
+
+        // FUNCIÓN PARA PERSISTIR DATA2 EN LOCALSTORAGE
+        function persistData2() {
+            if (data2.length > 0) {
+                localStorage.setItem('db2_data', JSON.stringify(data2));
+                saveButton.disabled = false;
+                saveOnlyButton.disabled = false;
+                saveButton.classList.remove('hidden');
+                saveOnlyButton.classList.remove('hidden');
+            }
+        }
+
+        // FUNCIÓN DE CARGA DE ARCHIVO
+        function handleFile(event, dataTarget, statusElement, fileNumber) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                dataTarget.length = 0;
+                
+                const uniqueCodes = new Map();
+
+                for (let i = 1; i < json.length; i++) {
+                    const row = json[i];
+                    if (row && row[0] != null) {
+                        const codigo = String(row[0]).trim();
+                        let entry = {
+                            codigo: codigo,
+                            descripcion: row[1] || '',
+                            undm: row[2] || ''
+                        };
+                        if (fileNumber === 2) {
+                            entry.ubicacion = row[3] || '';
+                        }
+                        uniqueCodes.set(codigo.toLowerCase(), entry);
+                    }
+                }
+                
+                dataTarget.push(...uniqueCodes.values());
+                
+                localStorage.setItem(`db${fileNumber}_data`, JSON.stringify(dataTarget));
+                
+                if (fileNumber === 2) {
+                    localStorage.setItem('db2_filename', file.name);
+                    db2_filename = file.name;
+                    persistData2();
+                }
+
+                statusElement.textContent = `"${file.name}" cargado con ${dataTarget.length} registros únicos.`;
+                statusElement.classList.remove('text-slate-400');
+                statusElement.classList.add('text-green-400', 'font-semibold');
+                
+                if (bulkSearchInput.value.trim().length > 0) {
+                    generateReport(bulkSearchInput.value);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        fileInput1.addEventListener('change', (e) => handleFile(e, data1, status1, 1));
+        fileInput2.addEventListener('change', (e) => handleFile(e, data2, status2, 2));
+
+        // LÓGICA DE INTERFAZ DESPLEGABLE
+        dataLoaderToggler.addEventListener('click', () => {
+            dataLoaderContent.classList.toggle('hidden');
+            dataLoaderChevron.classList.toggle('rotate-180');
+        });
+        
+        ocrToggler.addEventListener('click', () => {
+            ocrContent.classList.toggle('hidden');
+            ocrChevron.classList.toggle('rotate-180');
+        });
+
+        bulkSearchToggler.addEventListener('click', () => {
+            bulkSearchContent.classList.toggle('hidden');
+            bulkSearchChevron.classList.toggle('rotate-180');
+        });
+
+        // LÓGICA OCR
+        async function processImageForOCR(file, outputTextarea, statusElement, inputElement = null) {
+            if (!file) {
+                statusElement.textContent = "No se proporcionó una imagen válida.";
+                statusElement.classList.add('text-red-500');
+                return;
+            }
+
+            statusElement.textContent = "Procesando imagen...";
+            statusElement.classList.remove('text-red-500', 'text-gray-500', 'text-green-400');
+            statusElement.classList.add('text-sky-400');
+
+            try {
+                const { data: { text } } = await Tesseract.recognize(
+                    file,
+                    'eng+spa',
+                    { logger: m => {
+                        if(m.status === 'recognizing text'){
+                            statusElement.textContent = `Reconociendo... ${Math.round(m.progress * 100)}%`;
+                        }
+                    } }
+                );
+                
+                const existingText = outputTextarea.value.trim();
+                const newText = text.trim();
+
+                if (existingText.length > 0 && newText.length > 0) {
+                    outputTextarea.value = existingText + '\n' + newText;
+                } else if (newText.length > 0) {
+                    outputTextarea.value = newText;
+                }
+
+                outputTextarea.scrollTop = outputTextarea.scrollHeight;
+                outputTextarea.focus();
+                outputTextarea.selectionStart = outputTextarea.value.length;
+                outputTextarea.selectionEnd = outputTextarea.value.length;
+
+                statusElement.textContent = "¡Éxito! Datos agregados.";
+                statusElement.classList.remove('text-sky-400');
+                statusElement.classList.add('text-green-400');
+            } catch (error) {
+                console.error(error);
+                statusElement.textContent = "Ocurrió un error en la conversión.";
+                statusElement.classList.remove('text-sky-400');
+                statusElement.classList.add('text-red-500');
+            } finally {
+                if (inputElement) {
+                    inputElement.value = '';
+                }
+            }
+        }
+
+        ocrInputCodes.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) processImageForOCR(file, ocrOutput, ocrStatusCodes, event.target);
+        });
+
+        ocrInputQuantities.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) processImageForOCR(file, quantityInput, ocrStatusQuantities, event.target);
+        });
+
+        function handlePaste(event, outputTextarea, statusElement) {
+            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+            let imageFile = null;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    imageFile = items[i].getAsFile();
+                    break;
+                }
+            }
+
+            if (imageFile) {
+                event.preventDefault();
+                statusElement.textContent = "Imagen pegada. Procesando...";
+                processImageForOCR(imageFile, outputTextarea, statusElement);
+            }
+        }
+
+        pasteAreaCodes.addEventListener('paste', (event) => handlePaste(event, ocrOutput, ocrStatusCodes));
+        pasteAreaQuantities.addEventListener('paste', (event) => handlePaste(event, quantityInput, ocrStatusQuantities));
+
+        clearOcrOutputBtn.addEventListener('click', () => { ocrOutput.value = ''; });
+        clearQuantityInputBtn.addEventListener('click', () => { quantityInput.value = ''; });
+
+        generateReportBtn.addEventListener('click', () => {
+            const codes = ocrOutput.value;
+            if (codes.trim()) {
+                generateReport(codes);
+            } else {
+                alert('No hay códigos extraídos para generar el reporte.');
+            }
+        });
+
+        // FUNCIÓN DE ACTUALIZACIÓN DE UBICACIÓN
+        function updateLocation(code, newLocation) {
+            const codeToFind = String(code).trim().toLowerCase();
+            let success = false;
+            const existingItemIndex = data2.findIndex(item => String(item.codigo).trim().toLowerCase() === codeToFind);
+
+            if (existingItemIndex !== -1) {
+                data2[existingItemIndex].ubicacion = newLocation;
+                success = true;
+            } else {
+                const item1Data = data1.find(item => String(item.codigo).trim().toLowerCase() === codeToFind);
+                if (item1Data) {
+                    data2.push({ ...item1Data, ubicacion: newLocation });
+                    success = true;
+                } else {
+                    console.error("Data for code not found in DB1:", code);
+                    return false;
+                }
+            }
+            
+            if (success) {
+                persistData2();
+                
+                if (bulkSearchInput.value.trim()) {
+                    generateReport(bulkSearchInput.value);
+                }
+                
+                return true;
+            }
+            return false;
+        }
+
+        // FUNCIÓN DE GENERACIÓN DE REPORTE
+        function generateReport(codesString) {
+            const codesToSearch = codesString.trim().split('\n').filter(code => code.trim() !== '');
+            const quantities = quantityInput.value.trim().split('\n');
+            
+            if (codesToSearch.length === 0) {
+                printTitle.textContent = '';
+                bulkResultsOutput.innerHTML = '';
+                printButton.classList.add('hidden');
+                clearReportBtn.classList.add('hidden');
+                return;
+            }
+            
+            let resultsHTML = '<div class="results-scroll-wrapper" style="max-height: 550px; overflow-y: auto;"><table class="w-full text-left border-collapse"><thead><tr><th class="border border-slate-600 p-2 font-semibold">Código</th><th class="border border-slate-600 p-2 font-semibold">Descripción</th><th class="border border-slate-600 p-2 font-semibold">Unidad</th><th class="border border-slate-600 p-2 font-semibold">Cantidad</th><th class="border border-slate-600 p-2 font-semibold">Ubicación</th></tr></thead><tbody>';
+            
+            codesToSearch.forEach((code, index) => {
+                const cleanCode = code.trim();
+                if (!cleanCode) return;
+            
+                const normalizedCode = cleanCode.toLowerCase();
+                const item1 = data1.find(item => String(item.codigo).trim().toLowerCase() === normalizedCode);
+                const item2 = data2.find(item => String(item.codigo).trim().toLowerCase() === normalizedCode);
+                const quantity = quantities[index] ? quantities[index].trim() : '';
+            
+                if (!item1 && !item2) {
+                    const codeCellNotFound = `
+                        <div class="no-print">
+                            <input type="text" value="${cleanCode}" class="code-input w-full p-1 border border-transparent focus:border-slate-600 rounded-md bg-transparent">
+                        </div>
+                        <span class="print-only">${cleanCode}</span>
+                    `;
+                    resultsHTML += `<tr class="bg-red-900/20">
+                        <td class="border border-slate-700 p-2">${codeCellNotFound}</td>
+                        <td class="border border-slate-700 p-2" colspan="3"><span class="text-red-400 font-medium">Código no encontrado en ninguna base.</span></td>
+                        <td class="border border-slate-700 p-2"><span class="text-red-400">N/A</span></td>
+                    </tr>`;
+                    return;
+                }
+            
+                const description = item1 ? item1.descripcion : (item2.descripcion || '');
+                const undm = item1 ? item1.undm : (item2.undm || '');
+                const location = item2 ? (item2.ubicacion || '') : '';
+            
+                const codeCell = `
+                    <div class="no-print">
+                        <input type="text" value="${cleanCode}" class="code-input w-full p-1 border border-transparent focus:border-slate-600 rounded-md bg-transparent">
+                    </div>
+                    <span class="print-only">${cleanCode}</span>
+                `;
+            
+                const locationCell = `
+                    <div class="no-print flex flex-col sm:flex-row gap-2 items-stretch">
+                        <input type="text" value="${location}" data-code="${cleanCode}" class="flex-grow p-2">
+                        <button class="bulk-save-btn btn btn-secondary text-sm" data-code="${cleanCode}">
+                            <span>Guardar</span>
+                        </button>
+                    </div>
+                    <span class="print-only">${location}</span>
+                `;
+            
+                resultsHTML += `<tr>
+                    <td class="border border-slate-700 p-2">${codeCell}</td>
+                    <td class="border border-slate-700 p-2">${description}</td>
+                    <td class="border border-slate-700 p-2">${undm}</td>
+                    <td class="border border-slate-700 p-2 font-bold text-center">${quantity}</td>
+                    <td class="border border-slate-700 p-2">${locationCell}</td>
+                </tr>`;
+            });
+            
+            resultsHTML += '</tbody></table></div>';
+            
+            const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+            printTitle.textContent = `Reporte de Ubicaciones - ${fecha}`;
+            
+            bulkResultsOutput.innerHTML = resultsHTML;
+            
+            const scrollWrapper = bulkResultsOutput.querySelector('.results-scroll-wrapper');
+            if (scrollWrapper) {
+                scrollWrapper.scrollTop = scrollWrapper.scrollHeight;
+            }
+            
+            printButton.classList.remove('hidden');
+            clearReportBtn.classList.remove('hidden');
+            printableArea.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        bulkSearchInput.addEventListener('input', () => generateReport(bulkSearchInput.value));
+
+        // SALTO DE LÍNEA AUTOMÁTICO AL PEGAR
+        bulkSearchInput.addEventListener('paste', () => {
+            setTimeout(() => {
+                if (bulkSearchInput.value.trim().length > 0 && !bulkSearchInput.value.endsWith('\n')) {
+                    bulkSearchInput.value += '\n';
+                }
+                bulkSearchInput.scrollTop = bulkSearchInput.scrollHeight;
+                bulkSearchInput.selectionStart = bulkSearchInput.value.length;
+                bulkSearchInput.selectionEnd = bulkSearchInput.value.length;
+            }, 0);
+        });
+
+        // EVENTO DE CLICK EN EL REPORTE
+        printableArea.addEventListener('click', (event) => {
+            if (event.target.classList.contains('bulk-save-btn') || event.target.closest('.bulk-save-btn')) {
+                const button = event.target.closest('.bulk-save-btn');
+                const code = button.dataset.code;
+                const inputElement = button.parentElement.querySelector(`input[data-code="${code}"]`);
+
+                if (!inputElement) return;
+
+                const newLocation = inputElement.value.trim();
+
+                if (!newLocation) {
+                    alert('Por favor, ingrese una ubicación para el código ' + code);
+                    return;
+                }
+
+                if (updateLocation(code, newLocation)) {
+                    const originalHTML = button.innerHTML;
+                    const originalClass = button.className;
+                    
+                    button.innerHTML = `<span>¡Guardado!</span>`;
+                    button.classList.remove('btn-secondary');
+                    button.classList.add('bg-green-600', 'cursor-not-allowed');
+                    
+                    setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                        button.className = originalClass; 
+                    }, 1000);
+
+                    bulkSearchInput.focus();
+                    if (bulkSearchInput.value.trim().length > 0 && !bulkSearchInput.value.endsWith('\n')) {
+                        bulkSearchInput.value += '\n';
+                    }
+                    bulkSearchInput.selectionStart = bulkSearchInput.selectionEnd = bulkSearchInput.value.length;
+                } else {
+                    alert('No se pudo guardar la ubicación para el código ' + code);
+                }
+            }
+        });
+
+        function updateReportFromCodeInputs() {
+            const allCodeInputs = printableArea.querySelectorAll('.code-input');
+            const currentCodes = Array.from(allCodeInputs).map(input => input.value);
+            bulkSearchInput.value = currentCodes.join('\n');
+            generateReport(bulkSearchInput.value);
+        }
+
+        // EVENTO KEYDOWN - ENTER O TAB GUARDAN AUTOMÁTICAMENTE
+        printableArea.addEventListener('keydown', (event) => {
+            // Detectar Enter o Tab en los campos de ubicación
+            if ((event.key === 'Enter' || event.key === 'Tab') && event.target.tagName === 'INPUT' && event.target.dataset.code) {
+                event.preventDefault();
+                const button = event.target.parentElement.querySelector('.bulk-save-btn');
+                if (button) button.click();
+            }
+            // Detectar Enter en los campos de código
+            if (event.key === 'Enter' && event.target.classList.contains('code-input')) {
+                event.preventDefault();
+                updateReportFromCodeInputs();
+            }
+        });
+
+        printableArea.addEventListener('blur', (event) => {
+            if (event.target.classList.contains('code-input')) {
+                updateReportFromCodeInputs();
+            }
+        }, true);
+        
+        printButton.addEventListener('click', () => {
+            window.print();
+        });
+
+        // BOTÓN GUARDAR Y DESCARGAR
+        saveButton.addEventListener('click', () => {
+            if (data2.length === 0) {
+                alert('No hay datos en la Base de Datos 2 para descargar.');
+                return;
+            }
+
+            persistData2(); 
+
+            const header = ["codigo", "descripcion", "undm", "ubicacion"];
+            const dataToExport = [header, ...data2.map(item => [item.codigo, item.descripcion, item.undm, item.ubicacion])];
+
+            const ws = XLSX.utils.aoa_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'DatosConUbicaciones');
+
+            XLSX.writeFile(wb, db2_filename);
+        });
+
+        // BOTÓN SOLO GUARDAR LOCALMENTE
+        saveOnlyButton.addEventListener('click', () => {
+            if (data2.length === 0) {
+                alert('No hay datos en la Base de Datos 2 para guardar.');
+                return;
+            }
+
+            persistData2();
+            
+            const originalText = saveOnlyButton.innerHTML;
+            saveOnlyButton.innerHTML = `<span>¡Guardado! ✅</span>`;
+            
+            setTimeout(() => {
+                saveOnlyButton.innerHTML = originalText;
+            }, 1500);
+        });
+        
+        // LÓGICA DE LIMPIEZA
+        function clearManualSearchAndReport() {
+            bulkSearchInput.value = '';
+            ocrOutput.value = '';
+            quantityInput.value = '';
+            printTitle.textContent = '';
+            bulkResultsOutput.innerHTML = '';
+            printButton.classList.add('hidden');
+            clearReportBtn.classList.add('hidden');
+        }
+
+        clearBulkSearchBtn.addEventListener('click', clearManualSearchAndReport);
+        clearReportBtn.addEventListener('click', clearManualSearchAndReport);
+
+        // FUNCIÓN DE INICIALIZACIÓN: CARGA AUTOMÁTICA AL ABRIR
+        function initializeApp() {
+            const savedData1 = localStorage.getItem('db1_data');
+            if (savedData1) {
+                try {
+                    data1.push(...JSON.parse(savedData1));
+                    status1.textContent = `DB1 cargada desde sesión anterior (${data1.length} registros).`;
+                    status1.classList.remove('text-slate-400');
+                    status1.classList.add('text-green-400', 'font-semibold');
+                } catch (e) {
+                    status1.textContent = `Error al cargar DB1 de la sesión anterior.`;
+                    status1.classList.remove('text-green-400');
+                    status1.classList.add('text-red-500');
+                }
+            } else {
+                status1.textContent = `No se encontró una DB1 guardada.`;
+                status1.classList.remove('text-green-400');
+                status1.classList.add('text-slate-400');
+            }
+
+            const savedData2 = localStorage.getItem('db2_data');
+            const savedFilename2 = localStorage.getItem('db2_filename');
+            if (savedData2) {
+                try {
+                    data2.push(...JSON.parse(savedData2));
+                    db2_filename = savedFilename2 || db2_filename;
+                    status2.textContent = `DB2 cargada desde sesión anterior (${data2.length} registros).`;
+                    status2.classList.remove('text-slate-400');
+                    status2.classList.add('text-green-400', 'font-semibold');
+                    
+                    saveButton.disabled = false;
+                    saveButton.classList.remove('hidden');
+                    saveOnlyButton.disabled = false;
+                    saveOnlyButton.classList.remove('hidden');
+                } catch (e) {
+                    status2.textContent = `Error al cargar DB2 de la sesión anterior.`;
+                    status2.classList.remove('text-green-400');
+                    status2.classList.add('text-red-500');
+                }
+            } else {
+                status2.textContent = `No se encontró una DB2 guardada.`;
+                status2.classList.remove('text-green-400');
+                status2.classList.add('text-slate-400');
+            }
+        }
+
+        initializeApp();
+
+    </script>
+</body>
+</html>
