@@ -20,7 +20,6 @@
 
     <style>
         :root {
-            /* Dark Theme (Default) */
             --bg-gradient-start: #020617;
             --bg-gradient-mid: #0f172a;
             --bg-gradient-end: #1e293b;
@@ -37,7 +36,6 @@
         }
 
         body.light-theme {
-            /* Light Theme Overrides */
             --bg-gradient-start: #f1f5f9;
             --bg-gradient-mid: #e2e8f0;
             --bg-gradient-end: #cbd5e1;
@@ -119,24 +117,6 @@
             background: linear-gradient(45deg, #9333ea, #c084fc);
         }
 
-        .file-input-label {
-            border: 2px dashed var(--text-secondary);
-            color: var(--text-secondary);
-            transition: all 0.3s ease;
-        }
-
-        .file-input-label:hover {
-            border-color: var(--accent-color);
-            color: var(--accent-color);
-            background-color: rgba(56, 189, 248, 0.1);
-        }
-
-        .paste-zone {
-            border: 2px dashed var(--text-secondary);
-            color: var(--text-secondary);
-            min-height: 80px;
-        }
-
         textarea, input[type="text"] {
             background-color: var(--input-bg);
             border: 1px solid var(--border-color);
@@ -188,14 +168,6 @@
             background-color: var(--row-hover-bg);
         }
 
-        #printableArea .code-input {
-            font-weight: 600;
-        }
-
-        #printableArea .bulk-save-btn {
-            padding: 0.25rem 0.75rem;
-        }
-
         .print-only { display: none; }
 
         @media print {
@@ -227,8 +199,6 @@
                 padding: 2px 4px !important;
             }
             #printableArea th { background-color: #eee !important; }
-            #printableArea .text-red-500 { color: black !important; }
-            #printableArea .text-red-400 { color: black !important; }
         }
 
         /* Modal QR */
@@ -498,7 +468,7 @@
     const themeIconMoon = document.getElementById('themeIconMoon');
     const body = document.body;
 
-    // ===== THEME (igual que original) =====
+    // ===== THEME =====
     const applyTheme = (theme) => {
         if (theme === 'light') {
             body.classList.add('light-theme');
@@ -519,7 +489,7 @@
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
 
-    // ===== PERSISTENCIA (igual que original) =====
+    // ===== PERSISTENCIA =====
     function persistData2() {
         if (data2.length > 0) {
             localStorage.setItem('db2_data', JSON.stringify(data2));
@@ -598,7 +568,7 @@
         bulkSearchChevron.classList.toggle('rotate-180');
     });
 
-    // OCR (idéntico a original, recortado por espacio)
+    // ===== OCR =====
     async function processImageForOCR(file, outputTextarea, statusElement, inputElement = null) {
         if (!file) {
             statusElement.textContent = "No se proporcionó una imagen válida.";
@@ -678,13 +648,14 @@
     generateReportBtn.addEventListener('click', () => {
         const codes = ocrOutput.value;
         if (codes.trim()) {
+            bulkSearchInput.value = codes;
             generateReport(codes);
         } else {
             alert('No hay códigos extraídos para generar el reporte.');
         }
     });
 
-    // ===== updateLocation (igual) =====
+    // ===== Actualizar ubicación =====
     function updateLocation(code, newLocation) {
         const codeToFind = String(code).trim().toLowerCase();
         let success = false;
@@ -714,7 +685,7 @@
         return false;
     }
 
-    // ===== generateReport ORIGINAL + botones QR en ubicación =====
+    // ===== Reporte =====
     function generateReport(codesString) {
         const codesToSearch = codesString.trim().split('\n').filter(code => code.trim() !== '');
         const quantities = quantityInput.value.trim().split('\n');
@@ -727,7 +698,7 @@
             return;
         }
 
-        let resultsHTML = '<div class="results-scroll-wrapper" style="max-height: 550px; overflow-y: auto;"><table class="w-full text-left border-collapse"><thead><tr><th class="border border-slate-600 p-2 font-semibold">Código</th><th class="border border-slate-600 p-2 font-semibold">Descripción</th><th class="border border-slate-600 p-2 font-semibold">Unidad</th><th class="border border-slate-600 p-2 font-semibold">Cantidad</th><th class="border border-slate-600 p-2 font-semibold">Ubicación</th></tr></thead><tbody>';
+        let resultsHTML = '<div class="results-scroll-wrapper"><table class="w-full text-left border-collapse"><thead><tr><th class="border border-slate-600 p-2 font-semibold">Código</th><th class="border border-slate-600 p-2 font-semibold">Descripción</th><th class="border border-slate-600 p-2 font-semibold">Unidad</th><th class="border border-slate-600 p-2 font-semibold">Cantidad</th><th class="border border-slate-600 p-2 font-semibold">Ubicación</th></tr></thead><tbody>';
 
         codesToSearch.forEach((code, index) => {
             const cleanCode = code.trim();
@@ -794,7 +765,7 @@
 
         bulkResultsOutput.innerHTML = resultsHTML;
 
-        // Asociar botones QR de ubicación
+        // Botones QR de ubicación
         document.querySelectorAll('.qr-location-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.qrTarget;
@@ -815,7 +786,7 @@
     // Búsqueda manual -> actualizar reporte
     bulkSearchInput.addEventListener('input', () => generateReport(bulkSearchInput.value));
 
-    // Salto de línea automático al pegar
+    // Salto de línea al pegar
     bulkSearchInput.addEventListener('paste', () => {
         setTimeout(() => {
             if (bulkSearchInput.value.trim().length > 0 && !bulkSearchInput.value.endsWith('\n')) {
@@ -867,187 +838,159 @@
         }
     });
 
-    // Limpiar manual + reporte (igual original)
+    // Limpiar búsqueda manual y reporte
     function clearManualSearchAndReport() {
         bulkSearchInput.value = '';
-        ocrOutput.value = '';
         quantityInput.value = '';
-        printTitle.textContent = '';
         bulkResultsOutput.innerHTML = '';
+        printTitle.textContent = '';
         printButton.classList.add('hidden');
         clearReportBtn.classList.add('hidden');
     }
+
     clearBulkSearchBtn.addEventListener('click', clearManualSearchAndReport);
     clearReportBtn.addEventListener('click', clearManualSearchAndReport);
 
-    printButton.addEventListener('click', () => window.print());
-
-    // Guardar / Descargar
+    // Guardar Excel
     saveButton.addEventListener('click', () => {
-        if (data2.length === 0) {
-            alert('No hay datos en la Base de Datos 2 para descargar.');
-            return;
-        }
-        persistData2();
-        const header = ['codigo', 'descripcion', 'undm', 'ubicacion'];
-        const dataToExport = [header, ...data2.map(item => [
-            item.codigo,
-            item.descripcion,
-            item.undm,
-            item.ubicacion
-        ])];
-        const ws = XLSX.utils.aoa_to_sheet(dataToExport);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'DatosConUbicaciones');
-        XLSX.writeFile(wb, db2_filename);
-    });
-
-    saveOnlyButton.addEventListener('click', () => {
         if (data2.length === 0) {
             alert('No hay datos en la Base de Datos 2 para guardar.');
             return;
         }
-        persistData2();
-        const originalText = saveOnlyButton.innerHTML;
-        saveOnlyButton.innerHTML = '<span>Guardado!</span>';
-        setTimeout(() => {
-            saveOnlyButton.innerHTML = originalText;
-        }, 1500);
+        const ws_data = [['CODIGO', 'DESCRIPCION', 'UNDM', 'UBICACION']];
+        data2.forEach(item => {
+            ws_data.push([item.codigo, item.descripcion, item.undm, item.ubicacion]);
+        });
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'DB2 Actualizada');
+        XLSX.writeFile(wb, db2_filename || 'base_de_datos_actualizada.xlsx');
     });
 
-    // Inicialización (igual que original)
-    function initializeApp() {
-        const savedData1 = localStorage.getItem('db1_data');
-        if (savedData1) {
-            try {
-                data1 = JSON.parse(savedData1);
-                status1.textContent = `DB1 cargada desde sesión anterior (${data1.length} registros).`;
-                status1.classList.remove('text-slate-400');
-                status1.classList.add('text-green-400', 'font-semibold');
-            } catch (e) {
-                status1.textContent = 'Error al cargar DB1 de la sesión anterior.';
-                status1.classList.remove('text-green-400');
-                status1.classList.add('text-red-500');
-            }
-        } else {
-            status1.textContent = 'No se encontró una DB1 guardada.';
-            status1.classList.remove('text-green-400');
-            status1.classList.add('text-slate-400');
-        }
+    // Guardar local únicamente
+    saveOnlyButton.addEventListener('click', () => {
+        persistData2();
+        alert('Cambios guardados localmente en el navegador.');
+    });
 
+    // Imprimir
+    printButton.addEventListener('click', () => {
+        window.print();
+    });
+
+    // Restaurar data2 guardada localmente
+    window.addEventListener('load', () => {
         const savedData2 = localStorage.getItem('db2_data');
-        const savedFilename2 = localStorage.getItem('db2_filename');
+        const savedFilename = localStorage.getItem('db2_filename');
         if (savedData2) {
-            try {
-                data2 = JSON.parse(savedData2);
-                db2_filename = savedFilename2 || db2_filename;
-                status2.textContent = `DB2 cargada desde sesión anterior (${data2.length} registros).`;
-                status2.classList.remove('text-slate-400');
-                status2.classList.add('text-green-400', 'font-semibold');
-
-                saveButton.disabled = false;
-                saveButton.classList.remove('hidden');
-                saveOnlyButton.disabled = false;
-                saveOnlyButton.classList.remove('hidden');
-            } catch (e) {
-                status2.textContent = 'Error al cargar DB2 de la sesión anterior.';
-                status2.classList.remove('text-green-400');
-                status2.classList.add('text-red-500');
-            }
-        } else {
-            status2.textContent = 'No se encontró una DB2 guardada.';
-            status2.classList.remove('text-green-400');
-            status2.classList.add('text-slate-400');
+            data2 = JSON.parse(savedData2);
+            db2_filename = savedFilename || 'base_de_datos_actualizada.xlsx';
+            status2.textContent = `"${db2_filename}" restaurado con ${data2.length} registros desde almacenamiento local.`;
+            status2.classList.remove('text-slate-400');
+            status2.classList.add('text-green-400', 'font-semibold');
+            persistData2();
         }
-    }
-    initializeApp();
+    });
 
-    // ===== QR SCANNER (solo añade funcionalidad, no rompe nada) =====
-    let qrStream = null;
-    let qrCurrentTarget = null;
+    // ===== QR: variables globales y escaneo automático =====
     const qrModal = document.getElementById('qrModal');
     const qrVideo = document.getElementById('qrVideo');
     const qrStatus = document.getElementById('qrStatus');
     const qrScanBtn = document.getElementById('qrScanBtn');
     const qrCloseBtn = document.getElementById('qrCloseBtn');
     const qrCloseX = document.getElementById('qrCloseX');
-    const scanBulkQRBtn = document.getElementById('scanBulkQRBtn');
 
-    const qrCanvas = document.createElement('canvas');
-    const qrCtx = qrCanvas.getContext('2d');
+    let qrStream = null;
+    let qrCanvas = document.createElement('canvas');
+    let qrCtx = qrCanvas.getContext('2d');
+    let qrTarget = null;
+    let qrScanning = false;
 
-    async function startQRScanner(target) {
-        qrCurrentTarget = target;
-        document.getElementById('qrModalTitle').textContent =
-            target === 'bulk' ? 'Escanear QR - Códigos' : 'Escanear QR - Ubicación';
+    function startQRScanner(target) {
+        qrTarget = target;
         qrModal.style.display = 'block';
         qrStatus.textContent = 'Iniciando cámara...';
+        qrScanBtn.disabled = true; // ya no se usa para 1 solo disparo
 
-        try {
-            qrStream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(stream => {
+                qrStream = stream;
+                qrVideo.srcObject = stream;
+                qrVideo.setAttribute('playsinline', true);
+                qrVideo.play();
+                qrStatus.textContent = 'Enfoca el código QR. Se leerá automáticamente.';
+                qrScanning = true;
+                requestAnimationFrame(qrScanLoop);
+            })
+            .catch(err => {
+                console.error(err);
+                qrStatus.textContent = 'No se pudo acceder a la cámara.';
             });
-            qrVideo.srcObject = qrStream;
-            await new Promise(resolve => {
-                qrVideo.onloadedmetadata = () => {
-                    qrVideo.play();
-                    resolve();
-                };
-            });
-            qrStatus.textContent = 'Cámara lista. Pulse "Escanear Ahora".';
-        } catch (err) {
-            console.error(err);
-            qrStatus.textContent = 'Error al acceder a la cámara.';
-        }
     }
 
     function stopQRScanner() {
+        qrScanning = false;
         if (qrStream) {
-            qrStream.getTracks().forEach(t => t.stop());
+            qrStream.getTracks().forEach(track => track.stop());
             qrStream = null;
         }
+        qrVideo.srcObject = null;
         qrModal.style.display = 'none';
     }
 
-    async function scanOnce() {
-        if (!qrVideo.videoWidth) {
-            qrStatus.textContent = 'Esperando video...';
-            return;
-        }
-        qrCanvas.width = qrVideo.videoWidth;
-        qrCanvas.height = qrVideo.videoHeight;
-        qrCtx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
-        const imageData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-        const code = jsQR(imageData.data, imageData.width, imageData.height);
-        if (code) {
-            const value = code.data.trim();
-            qrStatus.textContent = 'QR detectado: ' + value;
+    function qrScanLoop() {
+        if (!qrScanning) return;
+        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+            qrCanvas.width = qrVideo.videoWidth;
+            qrCanvas.height = qrVideo.videoHeight;
+            qrCtx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+            const imageData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
 
-            if (qrCurrentTarget === 'bulk') {
-                if (bulkSearchInput.value.trim() && !bulkSearchInput.value.endsWith('\n')) {
-                    bulkSearchInput.value += '\n';
-                }
-                bulkSearchInput.value += value + '\n';
-                bulkSearchInput.scrollTop = bulkSearchInput.scrollHeight;
-                generateReport(bulkSearchInput.value);
+            if (code) {
+                const value = code.data.trim();
+                handleQRValue(value);
+                qrStatus.textContent = 'Código leído: ' + value;
+                stopQRScanner();
+                return;
             } else {
-                const input = document.querySelector(`input[data-qr-target="${qrCurrentTarget}"]`);
-                if (input) {
-                    input.value = value;
-                    input.focus();
-                }
+                qrStatus.textContent = 'Buscando QR...';
             }
+        }
+        requestAnimationFrame(qrScanLoop);
+    }
+
+    function handleQRValue(value) {
+        if (!value) return;
+
+        if (qrTarget === 'bulk') {
+            if (bulkSearchInput.value.trim().length > 0 && !bulkSearchInput.value.endsWith('\n')) {
+                bulkSearchInput.value += '\n';
+            }
+            bulkSearchInput.value += value + '\n';
+            bulkSearchInput.focus();
+            generateReport(bulkSearchInput.value);
         } else {
-            qrStatus.textContent = 'No se detectó QR, intente nuevamente.';
+            const input = document.querySelector(`input[data-qr-target="${qrTarget}"]`);
+            if (input) {
+                input.value = value;
+                input.focus();
+            }
         }
     }
 
     // Botón QR de búsqueda manual
-    scanBulkQRBtn.addEventListener('click', () => startQRScanner('bulk'));
-    qrScanBtn.addEventListener('click', scanOnce);
+    const scanBulkQRBtn = document.getElementById('scanBulkQRBtn');
+    scanBulkQRBtn.addEventListener('click', () => {
+        startQRScanner('bulk');
+    });
+
+    // Cerrar modal
     qrCloseBtn.addEventListener('click', stopQRScanner);
     qrCloseX.addEventListener('click', stopQRScanner);
-    qrModal.addEventListener('click', (e) => { if (e.target === qrModal) stopQRScanner(); });
+
+    // Opcional: ocultar botón "Escanear Ahora" (ya no se usa)
+    qrScanBtn.classList.add('hidden');
 </script>
 </body>
 </html>
