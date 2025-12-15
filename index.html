@@ -470,7 +470,6 @@
             data2.push({...item1,ubicacion:newLocation});
         }
         persistData2();
-        if (bulkSearchInput.value.trim()) generateReport(bulkSearchInput.value);
         return true;
     }
 
@@ -507,12 +506,33 @@
         printTitle.textContent = `Reporte de Ubicaciones - ${fecha}`;
         bulkResultsOutput.innerHTML = html;
         wireLocationQRButtons();
+        wireLocationInputsAutoSave();
         const sw = bulkResultsOutput.querySelector('.results-scroll-wrapper');
         if (sw) sw.scrollTop = sw.scrollHeight;
         printButton.classList.remove('hidden');
         clearReportBtn.classList.remove('hidden');
         printableArea.scrollIntoView({behavior:'smooth'});
     }
+
+    // Guardado automático al salir de la celda de ubicación
+    function wireLocationInputsAutoSave() {
+        document.querySelectorAll('input[data-code]').forEach(input => {
+            let lastValue = input.value.trim();
+            input.addEventListener('blur', () => {
+                const newValue = input.value.trim();
+                if (newValue === lastValue) return;
+                const code = input.getAttribute('data-code');
+                if (!newValue) return;
+                const ok = updateLocation(code, newValue);
+                if (ok) {
+                    lastValue = newValue;
+                } else {
+                    alert('No se pudo guardar la ubicación para el código ' + code);
+                }
+            });
+        });
+    }
+
     bulkSearchInput.addEventListener('input', ()=>generateReport(bulkSearchInput.value));
     bulkSearchInput.addEventListener('paste', ()=>{
         setTimeout(()=>{
@@ -557,7 +577,6 @@
         XLSX.writeFile(wb, db2_filename || 'base_de_datos_actualizada.xlsx');
     });
 
-    // Botón que guarda cambios en localStorage
     saveOnlyButton.addEventListener('click', ()=>{
         if(!data2.length){ alert('No hay datos en la Base de Datos 2 para guardar.'); return; }
         localStorage.setItem('db2_data', JSON.stringify(data2));
@@ -570,7 +589,6 @@
 
     printButton.addEventListener('click', ()=>window.print());
 
-    // Restaurar DB1 y DB2
     window.addEventListener('load', ()=>{
         const saved1 = localStorage.getItem('db1_data');
         if (saved1){
@@ -590,7 +608,7 @@
         if (saved2){
             data2 = JSON.parse(saved2);
             db2_filename = savedFn || 'base_de_datos_actualizada.xlsx';
-            status2.textContent = `"${db2_filename}" restaurado con ${data2.length} registros desde almacenamiento local.`;
+            status2.textContent = `"${db2_filename}" restaurado con ${data2.length} registros desde almacenamiento local."`;
             status2.classList.remove('text-slate-400');
             status2.classList.add('text-green-400','font-semibold');
             saveButton.disabled=false;saveOnlyButton.disabled=false;
