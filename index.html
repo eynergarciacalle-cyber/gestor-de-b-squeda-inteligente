@@ -11,8 +11,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Tesseract para OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <!-- jsQR para leer códigos QR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+    <!-- html5-qrcode para leer códigos QR (más robusto que jsQR) -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> <!-- [web:19] -->
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,8 +103,8 @@
         .btn-primary { background: linear-gradient(45deg, #2563eb, #3b82f6); color: white; }
         .btn-secondary { background: linear-gradient(45deg, #059669, #10b981); color: white; }
         .btn-tertiary { background: linear-gradient(45deg, #5b21b6, #6d28d9); color: white; }
-        .btn-danger { background: linear-gradient(45deg, #dc2626, #ef4444); color: white; }
-        .btn-gray { background: linear-gradient(45deg, #4b5563, #6b7280); color: white; }
+        .btn-danger   { background: linear-gradient(45deg, #dc2626, #ef4444); color: white; }
+        .btn-gray     { background: linear-gradient(45deg, #4b5563, #6b7280); color: white; }
 
         .btn-qr {
             background: linear-gradient(45deg, #7c3aed, #a855f7);
@@ -136,8 +136,8 @@
         }
 
         h1, h2, h3 { color: var(--text-primary); }
-        p, label { color: var(--text-secondary); }
-        footer p { color: var(--text-tertiary); }
+        p, label   { color: var(--text-secondary); }
+        footer p   { color: var(--text-tertiary); }
 
         .toggler-chevron { color: var(--text-secondary); }
 
@@ -199,6 +199,8 @@
                 padding: 2px 4px !important;
             }
             #printableArea th { background-color: #eee !important; }
+            #printableArea .text-red-500 { color: black !important; }
+            #printableArea .text-red-400 { color: black !important; }
         }
 
         /* Modal QR */
@@ -219,13 +221,6 @@
             max-width: 480px;
             border-radius: 0.75rem;
             backdrop-filter: blur(10px);
-        }
-        .qr-video {
-            width: 100%;
-            max-height: 320px;
-            border-radius: 0.5rem;
-            border: 2px solid var(--accent-color);
-            object-fit: cover;
         }
     </style>
 </head>
@@ -404,24 +399,25 @@
     <p class="text-sm">CREADO POR EYNER GARCIA</p>
 </footer>
 
-<!-- Modal QR -->
+<!-- Modal QR con html5-qrcode -->
 <div id="qrModal" class="qr-modal no-print">
     <div class="qr-modal-content">
         <div class="flex justify-between items-center mb-2">
             <h3 id="qrModalTitle" class="text-lg font-semibold">Escanear QR</h3>
             <button id="qrCloseX" class="text-2xl font-bold text-slate-300 hover:text-white">&times;</button>
         </div>
-        <video id="qrVideo" class="qr-video" autoplay playsinline muted></video>
-        <p id="qrStatus" class="text-sm text-center mt-2">Permita el acceso a la cámara si se lo solicita.</p>
+        <!-- Contenedor del lector -->
+        <div id="qrReader" style="width: 100%;"></div>
+        <p id="qrStatus" class="text-sm text-center mt-2">Enfoca el código QR.</p>
         <div class="flex justify-center gap-2 mt-3">
-            <button id="qrScanBtn" class="btn btn-primary text-sm">Escanear Ahora</button>
+            <!-- Botón de escanear manual ya no se usa, solo cierre -->
             <button id="qrCloseBtn" class="btn btn-secondary text-sm">Cerrar</button>
         </div>
     </div>
 </div>
 
 <script>
-    // ===== VARIABLES ORIGINALES =====
+    // ===== VARIABLES BASES =====
     let data1 = [];
     let data2 = [];
     let db2_filename = 'base_de_datos_actualizada.xlsx';
@@ -766,12 +762,7 @@
         bulkResultsOutput.innerHTML = resultsHTML;
 
         // Botones QR de ubicación
-        document.querySelectorAll('.qr-location-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const targetId = btn.dataset.qrTarget;
-                startQRScanner(targetId);
-            });
-        });
+        wireLocationQRButtons();
 
         const scrollWrapper = bulkResultsOutput.querySelector('.results-scroll-wrapper');
         if (scrollWrapper) {
@@ -892,73 +883,15 @@
         }
     });
 
-    // ===== QR: variables globales y escaneo automático =====
-    const qrModal = document.getElementById('qrModal');
-    const qrVideo = document.getElementById('qrVideo');
-    const qrStatus = document.getElementById('qrStatus');
-    const qrScanBtn = document.getElementById('qrScanBtn');
-    const qrCloseBtn = document.getElementById('qrCloseBtn');
-    const qrCloseX = document.getElementById('qrCloseX');
+    // ===== QR con html5-qrcode =====
+    const qrModal   = document.getElementById('qrModal');
+    const qrStatus  = document.getElementById('qrStatus');
+    const qrCloseBtn= document.getElementById('qrCloseBtn');
+    const qrCloseX  = document.getElementById('qrCloseX');
+    const scanBulkQRBtn = document.getElementById('scanBulkQRBtn');
 
-    let qrStream = null;
-    let qrCanvas = document.createElement('canvas');
-    let qrCtx = qrCanvas.getContext('2d');
-    let qrTarget = null;
-    let qrScanning = false;
-
-    function startQRScanner(target) {
-        qrTarget = target;
-        qrModal.style.display = 'block';
-        qrStatus.textContent = 'Iniciando cámara...';
-        qrScanBtn.disabled = true; // ya no se usa para 1 solo disparo
-
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-            .then(stream => {
-                qrStream = stream;
-                qrVideo.srcObject = stream;
-                qrVideo.setAttribute('playsinline', true);
-                qrVideo.play();
-                qrStatus.textContent = 'Enfoca el código QR. Se leerá automáticamente.';
-                qrScanning = true;
-                requestAnimationFrame(qrScanLoop);
-            })
-            .catch(err => {
-                console.error(err);
-                qrStatus.textContent = 'No se pudo acceder a la cámara.';
-            });
-    }
-
-    function stopQRScanner() {
-        qrScanning = false;
-        if (qrStream) {
-            qrStream.getTracks().forEach(track => track.stop());
-            qrStream = null;
-        }
-        qrVideo.srcObject = null;
-        qrModal.style.display = 'none';
-    }
-
-    function qrScanLoop() {
-        if (!qrScanning) return;
-        if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
-            qrCanvas.width = qrVideo.videoWidth;
-            qrCanvas.height = qrVideo.videoHeight;
-            qrCtx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
-            const imageData = qrCtx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-
-            if (code) {
-                const value = code.data.trim();
-                handleQRValue(value);
-                qrStatus.textContent = 'Código leído: ' + value;
-                stopQRScanner();
-                return;
-            } else {
-                qrStatus.textContent = 'Buscando QR...';
-            }
-        }
-        requestAnimationFrame(qrScanLoop);
-    }
+    let qrTarget = null;   // 'bulk' o id de fila
+    let html5Qr  = null;   // instancia de Html5Qrcode
 
     function handleQRValue(value) {
         if (!value) return;
@@ -979,18 +912,68 @@
         }
     }
 
+    function startQRScanner(target) {
+        qrTarget = target;
+        qrModal.style.display = 'block';
+        qrStatus.textContent = 'Iniciando cámara...';
+
+        // Destruir instancia previa si existe
+        if (html5Qr) {
+            html5Qr.clear().catch(() => {});
+            html5Qr = null;
+        }
+
+        html5Qr = new Html5Qrcode("qrReader");
+
+        const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 }
+        };
+
+        html5Qr.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText, decodedResult) => {
+                handleQRValue(decodedText.trim());
+                qrStatus.textContent = 'Código leído: ' + decodedText;
+                stopQRScanner();
+            },
+            (errorMessage) => {
+                qrStatus.textContent = 'Buscando QR...';
+            }
+        ).catch(err => {
+            console.error(err);
+            qrStatus.textContent = 'No se pudo iniciar el escáner.';
+        });
+    }
+
+    function stopQRScanner() {
+        if (html5Qr) {
+            html5Qr.stop()
+                .then(() => html5Qr.clear())
+                .catch(() => {});
+        }
+        qrModal.style.display = 'none';
+    }
+
     // Botón QR de búsqueda manual
-    const scanBulkQRBtn = document.getElementById('scanBulkQRBtn');
     scanBulkQRBtn.addEventListener('click', () => {
         startQRScanner('bulk');
     });
 
+    // Wire buttons de ubicación (se llama desde generateReport)
+    function wireLocationQRButtons() {
+        document.querySelectorAll('.qr-location-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.dataset.qrTarget;
+                startQRScanner(targetId);
+            });
+        });
+    }
+
     // Cerrar modal
     qrCloseBtn.addEventListener('click', stopQRScanner);
     qrCloseX.addEventListener('click', stopQRScanner);
-
-    // Opcional: ocultar botón "Escanear Ahora" (ya no se usa)
-    qrScanBtn.classList.add('hidden');
 </script>
 </body>
 </html>
