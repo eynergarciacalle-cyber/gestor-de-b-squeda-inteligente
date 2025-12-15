@@ -11,7 +11,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Tesseract para OCR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <!-- html5-qrcode para leer códigos QR (más robusto que jsQR) -->
+    <!-- html5-qrcode para leer códigos QR -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> <!-- [web:19] -->
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -406,11 +406,9 @@
             <h3 id="qrModalTitle" class="text-lg font-semibold">Escanear QR</h3>
             <button id="qrCloseX" class="text-2xl font-bold text-slate-300 hover:text-white">&times;</button>
         </div>
-        <!-- Contenedor del lector -->
         <div id="qrReader" style="width: 100%;"></div>
         <p id="qrStatus" class="text-sm text-center mt-2">Enfoca el código QR.</p>
         <div class="flex justify-center gap-2 mt-3">
-            <!-- Botón de escanear manual ya no se usa, solo cierre -->
             <button id="qrCloseBtn" class="btn btn-secondary text-sm">Cerrar</button>
         </div>
     </div>
@@ -761,7 +759,6 @@
 
         bulkResultsOutput.innerHTML = resultsHTML;
 
-        // Botones QR de ubicación
         wireLocationQRButtons();
 
         const scrollWrapper = bulkResultsOutput.querySelector('.results-scroll-wrapper');
@@ -774,10 +771,8 @@
         printableArea.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // Búsqueda manual -> actualizar reporte
     bulkSearchInput.addEventListener('input', () => generateReport(bulkSearchInput.value));
 
-    // Salto de línea al pegar
     bulkSearchInput.addEventListener('paste', () => {
         setTimeout(() => {
             if (bulkSearchInput.value.trim().length > 0 && !bulkSearchInput.value.endsWith('\n')) {
@@ -789,7 +784,6 @@
         }, 0);
     });
 
-    // Click en reporte (Guardar ubicación)
     printableArea.addEventListener('click', (event) => {
         if (event.target.classList.contains('bulk-save-btn') || event.target.closest('.bulk-save-btn')) {
             const button = event.target.closest('.bulk-save-btn');
@@ -829,7 +823,6 @@
         }
     });
 
-    // Limpiar búsqueda manual y reporte
     function clearManualSearchAndReport() {
         bulkSearchInput.value = '';
         quantityInput.value = '';
@@ -842,7 +835,6 @@
     clearBulkSearchBtn.addEventListener('click', clearManualSearchAndReport);
     clearReportBtn.addEventListener('click', clearManualSearchAndReport);
 
-    // Guardar Excel
     saveButton.addEventListener('click', () => {
         if (data2.length === 0) {
             alert('No hay datos en la Base de Datos 2 para guardar.');
@@ -858,18 +850,15 @@
         XLSX.writeFile(wb, db2_filename || 'base_de_datos_actualizada.xlsx');
     });
 
-    // Guardar local únicamente
     saveOnlyButton.addEventListener('click', () => {
         persistData2();
         alert('Cambios guardados localmente en el navegador.');
     });
 
-    // Imprimir
     printButton.addEventListener('click', () => {
         window.print();
     });
 
-    // Restaurar data2 guardada localmente
     window.addEventListener('load', () => {
         const savedData2 = localStorage.getItem('db2_data');
         const savedFilename = localStorage.getItem('db2_filename');
@@ -883,15 +872,16 @@
         }
     });
 
-    // ===== QR con html5-qrcode =====
+    // ===== QR con html5-qrcode (instancia única) =====
     const qrModal   = document.getElementById('qrModal');
     const qrStatus  = document.getElementById('qrStatus');
     const qrCloseBtn= document.getElementById('qrCloseBtn');
     const qrCloseX  = document.getElementById('qrCloseX');
     const scanBulkQRBtn = document.getElementById('scanBulkQRBtn');
 
-    let qrTarget = null;   // 'bulk' o id de fila
-    let html5Qr  = null;   // instancia de Html5Qrcode
+    let qrTarget = null;
+    let html5Qr  = null;
+    let qrStarted = false;
 
     function handleQRValue(value) {
         if (!value) return;
@@ -912,18 +902,32 @@
         }
     }
 
+    function openQrModal() {
+        qrModal.style.display = 'block';
+    }
+
+    function closeQrModal() {
+        qrModal.style.display = 'none';
+    }
+
+    function ensureHtml5QrInstance() {
+        if (!html5Qr) {
+            html5Qr = new Html5Qrcode("qrReader");
+        }
+    }
+
     function startQRScanner(target) {
         qrTarget = target;
-        qrModal.style.display = 'block';
+        openQrModal();
         qrStatus.textContent = 'Iniciando cámara...';
 
-        // Destruir instancia previa si existe
-        if (html5Qr) {
-            html5Qr.clear().catch(() => {});
-            html5Qr = null;
-        }
+        ensureHtml5QrInstance();
 
-        html5Qr = new Html5Qrcode("qrReader");
+        if (qrStarted) {
+            // Ya hay cámara abierta: solo cambiamos el target y mensaje
+            qrStatus.textContent = 'Enfoca el código QR.';
+            return;
+        }
 
         const config = {
             fps: 10,
@@ -936,32 +940,39 @@
             (decodedText, decodedResult) => {
                 handleQRValue(decodedText.trim());
                 qrStatus.textContent = 'Código leído: ' + decodedText;
-                stopQRScanner();
+                // NO detenemos la cámara; solo cerramos modal para permitir reuso
+                closeQrModal();
             },
             (errorMessage) => {
                 qrStatus.textContent = 'Buscando QR...';
             }
-        ).catch(err => {
+        ).then(() => {
+            qrStarted = true;
+            qrStatus.textContent = 'Enfoca el código QR.';
+        }).catch(err => {
             console.error(err);
             qrStatus.textContent = 'No se pudo iniciar el escáner.';
         });
     }
 
     function stopQRScanner() {
-        if (html5Qr) {
+        if (html5Qr && qrStarted) {
             html5Qr.stop()
-                .then(() => html5Qr.clear())
-                .catch(() => {});
+                .then(() => {
+                    qrStarted = false;
+                    qrStatus.textContent = 'Escáner detenido.';
+                })
+                .catch(err => {
+                    console.error('Error al detener escáner:', err);
+                });
         }
-        qrModal.style.display = 'none';
+        closeQrModal();
     }
 
-    // Botón QR de búsqueda manual
     scanBulkQRBtn.addEventListener('click', () => {
         startQRScanner('bulk');
     });
 
-    // Wire buttons de ubicación (se llama desde generateReport)
     function wireLocationQRButtons() {
         document.querySelectorAll('.qr-location-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -971,7 +982,6 @@
         });
     }
 
-    // Cerrar modal
     qrCloseBtn.addEventListener('click', stopQRScanner);
     qrCloseX.addEventListener('click', stopQRScanner);
 </script>
