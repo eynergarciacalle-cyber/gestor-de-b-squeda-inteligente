@@ -872,7 +872,7 @@
         }
     });
 
-    // ===== QR con html5-qrcode (instancia única) =====
+    // ===== QR con html5-qrcode (leer una vez y detener) =====
     const qrModal   = document.getElementById('qrModal');
     const qrStatus  = document.getElementById('qrStatus');
     const qrCloseBtn= document.getElementById('qrCloseBtn');
@@ -881,7 +881,6 @@
 
     let qrTarget = null;
     let html5Qr  = null;
-    let qrStarted = false;
 
     function handleQRValue(value) {
         if (!value) return;
@@ -923,12 +922,6 @@
 
         ensureHtml5QrInstance();
 
-        if (qrStarted) {
-            // Ya hay cámara abierta: solo cambiamos el target y mensaje
-            qrStatus.textContent = 'Enfoca el código QR.';
-            return;
-        }
-
         const config = {
             fps: 10,
             qrbox: { width: 250, height: 250 }
@@ -938,16 +931,24 @@
             { facingMode: "environment" },
             config,
             (decodedText, decodedResult) => {
-                handleQRValue(decodedText.trim());
-                qrStatus.textContent = 'Código leído: ' + decodedText;
-                // NO detenemos la cámara; solo cerramos modal para permitir reuso
-                closeQrModal();
+                const value = decodedText.trim();
+                handleQRValue(value);
+                qrStatus.textContent = 'Código leído: ' + value;
+
+                // Detener justo después de leer UNA vez
+                html5Qr.stop()
+                  .then(() => {
+                      closeQrModal();
+                  })
+                  .catch(err => {
+                      console.error('Error al detener escáner:', err);
+                      closeQrModal();
+                  });
             },
             (errorMessage) => {
                 qrStatus.textContent = 'Buscando QR...';
             }
         ).then(() => {
-            qrStarted = true;
             qrStatus.textContent = 'Enfoca el código QR.';
         }).catch(err => {
             console.error(err);
@@ -956,15 +957,9 @@
     }
 
     function stopQRScanner() {
-        if (html5Qr && qrStarted) {
+        if (html5Qr) {
             html5Qr.stop()
-                .then(() => {
-                    qrStarted = false;
-                    qrStatus.textContent = 'Escáner detenido.';
-                })
-                .catch(err => {
-                    console.error('Error al detener escáner:', err);
-                });
+                .catch(err => console.error('Error al detener escáner:', err));
         }
         closeQrModal();
     }
