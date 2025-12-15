@@ -1,419 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestor de Búsqueda Inteligente</title>
-
-    <!-- Tailwind para estilos rápidos -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- XLSX para manejar Excel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Tesseract para OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <!-- html5-qrcode para leer códigos QR -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script> <!-- [web:19] -->
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        :root {
-            --bg-gradient-start: #020617;
-            --bg-gradient-mid: #0f172a;
-            --bg-gradient-end: #1e293b;
-            --card-bg: rgba(30, 41, 59, 0.5);
-            --text-primary: #e2e8f0;
-            --text-secondary: #94a3b8;
-            --text-tertiary: #64748b;
-            --accent-color: #38bdf8;
-            --border-color: #334155;
-            --input-bg: rgba(15, 23, 42, 0.7);
-            --table-header-bg: rgba(30, 41, 59, 0.8);
-            --row-hover-bg: rgba(51, 65, 85, 0.5);
-            --card-border: rgba(255, 255, 255, 0.1);
-        }
-
-        body.light-theme {
-            --bg-gradient-start: #f1f5f9;
-            --bg-gradient-mid: #e2e8f0;
-            --bg-gradient-end: #cbd5e1;
-            --card-bg: rgba(255, 255, 255, 0.6);
-            --text-primary: #1e293b;
-            --text-secondary: #475569;
-            --text-tertiary: #64748b;
-            --accent-color: #0284c7;
-            --border-color: #cbd5e1;
-            --input-bg: rgba(241, 245, 249, 0.7);
-            --table-header-bg: rgba(226, 232, 240, 0.8);
-            --row-hover-bg: rgba(203, 213, 225, 0.5);
-            --card-border: rgba(0, 0, 0, 0.1);
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-mid), var(--bg-gradient-end));
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-            color: var(--text-primary);
-        }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid var(--card-border);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.5);
-            transform: translateY(-5px);
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            text-align: center;
-            border: none;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        }
-
-        .btn:hover {
-            transform: translateY(-3px) scale(1.05);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.3);
-        }
-
-        .btn-primary { background: linear-gradient(45deg, #2563eb, #3b82f6); color: white; }
-        .btn-secondary { background: linear-gradient(45deg, #059669, #10b981); color: white; }
-        .btn-tertiary { background: linear-gradient(45deg, #5b21b6, #6d28d9); color: white; }
-        .btn-danger   { background: linear-gradient(45deg, #dc2626, #ef4444); color: white; }
-        .btn-gray     { background: linear-gradient(45deg, #4b5563, #6b7280); color: white; }
-
-        .btn-qr {
-            background: linear-gradient(45deg, #7c3aed, #a855f7);
-            color: white;
-            padding: 0.4rem 0.8rem;
-            font-size: 0.8rem;
-        }
-
-        .btn-qr:hover {
-            background: linear-gradient(45deg, #9333ea, #c084fc);
-        }
-
-        textarea, input[type="text"] {
-            background-color: var(--input-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-        }
-
-        textarea::placeholder, input[type="text"]::placeholder {
-            color: var(--text-secondary);
-        }
-
-        textarea:focus, input[type="text"]:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3);
-        }
-
-        h1, h2, h3 { color: var(--text-primary); }
-        p, label   { color: var(--text-secondary); }
-        footer p   { color: var(--text-tertiary); }
-
-        .toggler-chevron { color: var(--text-secondary); }
-
-        .results-scroll-wrapper {
-            max-height: 550px;
-            overflow-y: auto;
-        }
-
-        #printableArea table {
-            background-color: transparent;
-            border-color: var(--border-color);
-        }
-
-        #printableArea th {
-            background-color: var(--table-header-bg);
-            color: var(--accent-color);
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            letter-spacing: 0.1em;
-        }
-
-        #printableArea td {
-            border-color: var(--border-color);
-            transition: background-color 0.3s ease;
-        }
-
-        #printableArea tr:hover td {
-            background-color: var(--row-hover-bg);
-        }
-
-        .print-only { display: none; }
-
-        @media print {
-            body { background: white !important; }
-            body * { visibility: hidden; }
-            #printableArea, #printableArea * {
-                visibility: visible;
-                color: black !important;
-            }
-            #printableArea {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-            }
-            .no-print { display: none !important; }
-            .print-only {
-                display: block !important;
-                background-color: white !important;
-                color: black !important;
-            }
-            .results-scroll-wrapper {
-                max-height: none !important;
-                overflow-y: visible !important;
-            }
-            #printableArea table, #printableArea th, #printableArea td {
-                border-color: #999 !important;
-                font-size: 9pt !important;
-                padding: 2px 4px !important;
-            }
-            #printableArea th { background-color: #eee !important; }
-            #printableArea .text-red-500 { color: black !important; }
-            #printableArea .text-red-400 { color: black !important; }
-        }
-
-        /* Modal QR */
-        .qr-modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.85);
-        }
-        .qr-modal-content {
-            background-color: var(--card-bg);
-            margin: 4% auto;
-            padding: 16px;
-            border: 1px solid var(--border-color);
-            width: 95%;
-            max-width: 480px;
-            border-radius: 0.75rem;
-            backdrop-filter: blur(10px);
-        }
-    </style>
-</head>
-<body class="p-4 sm:p-6 md:p-8">
-
-<div class="max-w-4xl mx-auto">
-    <header class="text-center mb-8 no-print relative">
-        <h1 class="text-3xl sm:text-4xl font-bold tracking-wider">Gestor de Búsqueda Inteligente</h1>
-        <p class="mt-2">Carga, convierte imágenes, busca, actualiza y guarda tus datos de inventario.</p>
-
-        <div class="absolute top-0 right-0">
-            <button id="themeToggleBtn" class="p-2 rounded-full bg-slate-700/50 hover:bg-slate-600/50 transition-colors duration-300">
-                <svg id="themeIconSun" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-yellow-300 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M12 5a7 7 0 100 14 7 7 0 000-14z" />
-                </svg>
-                <svg id="themeIconMoon" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-            </button>
-        </div>
-    </header>
-
-    <main class="space-y-6 no-print">
-        <!-- 1. Cargar Hojas de Datos -->
-        <div class="card">
-            <div id="dataLoaderToggler" class="flex justify-between items-center cursor-pointer">
-                <h2 class="text-2xl font-semibold">1. Cargar Hojas de Datos</h2>
-                <svg id="dataLoaderChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform rotate-180 toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-            <div id="dataLoaderContent" class="mt-4 border-t border-slate-700 pt-4">
-                <div class="space-y-4">
-                    <!-- DB1 -->
-                    <div class="flex items-center gap-4 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
-                        <div class="flex-shrink-0 w-10 h-10 bg-slate-700 text-blue-400 rounded-lg flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <div class="flex-grow">
-                            <h3 class="font-semibold">Base de Datos 1 (Descripciones)</h3>
-                            <p id="status1" class="text-sm">No se ha cargado ningún archivo.</p>
-                        </div>
-                        <label for="file1" class="btn btn-primary text-sm py-2 px-4 cursor-pointer">
-                            <span>Seleccionar</span>
-                        </label>
-                        <input type="file" id="file1" accept=".xlsx, .xls" class="hidden">
-                    </div>
-                    <!-- DB2 -->
-                    <div class="flex items-center gap-4 p-2 rounded-lg hover:bg-slate-800/50 transition-colors">
-                        <div class="flex-shrink-0 w-10 h-10 bg-slate-700 text-green-400 rounded-lg flex items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </div>
-                        <div class="flex-grow">
-                            <h3 class="font-semibold">Base de Datos 2 (Ubicaciones)</h3>
-                            <p id="status2" class="text-sm">No se ha cargado ningún archivo.</p>
-                        </div>
-                        <label for="file2" class="btn btn-secondary text-sm py-2 px-4 cursor-pointer">
-                            <span>Seleccionar</span>
-                        </label>
-                        <input type="file" id="file2" accept=".xlsx, .xls" class="hidden">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. OCR -->
-        <div class="card">
-            <div id="ocrToggler" class="flex justify-between items-center cursor-pointer">
-                <h2 class="text-2xl font-semibold">2. Convertir Imagen a Texto (OCR)</h2>
-                <svg id="ocrChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-
-            <div id="ocrContent" class="hidden mt-4 border-t border-slate-700 pt-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                    <!-- A -->
-                    <div id="paste-area-codes" class="space-y-2">
-                        <h3 class="font-medium">A. Extraer Códigos</h3>
-                        <label for="ocrInputCodes" class="btn btn-tertiary w-full text-sm py-2 cursor-pointer">
-                            <span>Seleccionar Archivo de Códigos</span>
-                        </label>
-                        <p class="text-xs text-center">(O pegue la imagen en esta sección)</p>
-                        <input type="file" id="ocrInputCodes" accept="image/*" class="hidden">
-                        <p id="ocrStatusCodes" class="text-sm text-center">...</p>
-                        <textarea id="ocrOutput" rows="4" class="w-full p-2" placeholder="Códigos extraídos..."></textarea>
-                        <button id="clearOcrOutputBtn" class="btn btn-danger w-full text-sm py-2">
-                            <span>Limpiar Códigos</span>
-                        </button>
-                    </div>
-
-                    <!-- B -->
-                    <div id="paste-area-quantities" class="space-y-2">
-                        <h3 class="font-medium">B. Extraer Cantidades</h3>
-                        <label for="ocrInputQuantities" class="btn btn-tertiary w-full text-sm py-2 cursor-pointer">
-                            <span>Seleccionar Archivo de Cantidades</span>
-                        </label>
-                        <p class="text-xs text-center">(O pegue la imagen en esta sección)</p>
-                        <input type="file" id="ocrInputQuantities" accept="image/*" class="hidden">
-                        <p id="ocrStatusQuantities" class="text-sm text-center">...</p>
-                        <textarea id="quantityInput" rows="4" class="w-full p-2" placeholder="Cantidades extraídas..."></textarea>
-                        <button id="clearQuantityInputBtn" class="btn btn-danger w-full text-sm py-2">
-                            <span>Limpiar Cantidades</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="mt-4 border-t border-slate-700 pt-4">
-                    <button id="generateReportBtn" class="btn btn-primary w-full">
-                        <span>Generar Reporte con Datos Convertidos</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. Búsqueda Manual con botón QR -->
-        <div class="card">
-            <div id="bulkSearchToggler" class="flex justify-between items-center cursor-pointer">
-                <h2 class="text-2xl font-semibold">3. Búsqueda Manual</h2>
-                <svg id="bulkSearchChevron" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 transition-transform transform toggler-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-            </div>
-            <div id="bulkSearchContent" class="hidden mt-4 border-t border-slate-700 pt-4">
-                <div>
-                    <div class="flex justify-between items-center mb-2 gap-2">
-                        <label for="bulkSearchInput" class="block font-medium">
-                            Pegue los códigos aquí (uno por línea):
-                        </label>
-                        <div class="flex gap-2">
-                            <button id="clearBulkSearchBtn" class="btn btn-danger px-3 py-1 text-sm">
-                                <span>Limpiar</span>
-                            </button>
-                            <button id="scanBulkQRBtn" class="btn btn-qr text-sm">
-                                QR
-                            </button>
-                        </div>
-                    </div>
-                    <textarea id="bulkSearchInput" rows="8" class="w-full p-3"></textarea>
-                </div>
-            </div>
-        </div>
-    </main>
-</div>
-
-<!-- Área Imprimible -->
-<div id="printableArea" class="p-8">
-    <h1 id="printTitle" class="text-2xl font-bold mb-6 text-center"></h1>
-    <div id="bulkResultsOutput"></div>
-
-    <div class="flex justify-end mt-8 no-print gap-4">
-        <button id="clearReportBtn" class="btn btn-gray hidden">
-            <span>Limpiar Reporte</span>
-        </button>
-
-        <button id="saveOnlyButton" class="btn btn-tertiary hidden" disabled>
-            <span>Guardar Cambios Localmente</span>
-        </button>
-
-        <button id="saveButton" class="btn btn-primary hidden" disabled>
-            <span>Descargar Excel (con Cambios)</span>
-        </button>
-
-        <button id="printButton" class="btn btn-secondary hidden">
-            <span>Imprimir Lista</span>
-        </button>
-    </div>
-</div>
-
-<footer class="text-center p-4 mt-8 no-print">
-    <p class="text-sm">CREADO POR EYNER GARCIA</p>
-</footer>
-
-<!-- Modal QR con html5-qrcode -->
-<div id="qrModal" class="qr-modal no-print">
-    <div class="qr-modal-content">
-        <div class="flex justify-between items-center mb-2">
-            <h3 id="qrModalTitle" class="text-lg font-semibold">Escanear QR</h3>
-            <button id="qrCloseX" class="text-2xl font-bold text-slate-300 hover:text-white">&times;</button>
-        </div>
-        <div id="qrReader" style="width: 100%;"></div>
-        <p id="qrStatus" class="text-sm text-center mt-2">Enfoca el código QR.</p>
-        <div class="flex justify-center gap-2 mt-3">
-            <button id="qrCloseBtn" class="btn btn-secondary text-sm">Cerrar</button>
-        </div>
-    </div>
-</div>
-
 <script>
     // ===== VARIABLES BASES =====
     let data1 = [];
@@ -483,7 +67,7 @@
     const savedTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(savedTheme);
 
-    // ===== PERSISTENCIA =====
+    // ===== PERSISTENCIA DB2 =====
     function persistData2() {
         if (data2.length > 0) {
             localStorage.setItem('db2_data', JSON.stringify(data2));
@@ -494,6 +78,7 @@
         }
     }
 
+    // ===== CARGA DE ARCHIVOS (DB1 y DB2) =====
     function handleFile(event, dataTarget, statusElement, fileNumber) {
         const file = event.target.files[0];
         if (!file) return;
@@ -527,6 +112,7 @@
 
             dataTarget.push(...uniqueCodes.values());
 
+            // Guardar DB1 o DB2 en localStorage
             localStorage.setItem(`db${fileNumber}_data`, JSON.stringify(dataTarget));
             if (fileNumber === 2) {
                 localStorage.setItem('db2_filename', file.name);
@@ -859,7 +445,24 @@
         window.print();
     });
 
+    // ===== RESTAURAR DB1 y DB2 AL CARGAR =====
     window.addEventListener('load', () => {
+        // Restaurar DB1
+        const savedData1 = localStorage.getItem('db1_data');
+        if (savedData1) {
+            try {
+                data1 = JSON.parse(savedData1);
+                status1.textContent = `"DB1 restaurada con ${data1.length} registros desde almacenamiento local."`;
+                status1.classList.remove('text-slate-400');
+                status1.classList.add('text-green-400', 'font-semibold');
+            } catch (e) {
+                status1.textContent = 'Error al cargar DB1 guardada.';
+                status1.classList.remove('text-green-400');
+                status1.classList.add('text-red-500');
+            }
+        }
+
+        // Restaurar DB2
         const savedData2 = localStorage.getItem('db2_data');
         const savedFilename = localStorage.getItem('db2_filename');
         if (savedData2) {
@@ -935,7 +538,6 @@
                 handleQRValue(value);
                 qrStatus.textContent = 'Código leído: ' + value;
 
-                // Detener justo después de leer UNA vez
                 html5Qr.stop()
                   .then(() => {
                       closeQrModal();
@@ -980,5 +582,3 @@
     qrCloseBtn.addEventListener('click', stopQRScanner);
     qrCloseX.addEventListener('click', stopQRScanner);
 </script>
-</body>
-</html>
